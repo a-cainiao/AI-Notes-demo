@@ -22,7 +22,7 @@ const App: React.FC = () => {
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
-  const [aiResult, setAiResult] = useState('');
+  const [aiResult, setAiResult] = useState<string[]>([]);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [isSelection, setIsSelection] = useState(false);
   const [originalText, setOriginalText] = useState('');
@@ -129,7 +129,7 @@ const App: React.FC = () => {
     // 打开 AI 悬浮框，开始 AI 处理
     setIsAIModalOpen(true);
     setIsAIProcessing(true);
-    setAiResult('');
+    setAiResult([]);
     setIsSelection(isSelection);
     setOriginalText(text);
     setSelectionStart(start);
@@ -139,8 +139,11 @@ const App: React.FC = () => {
     aiService.processText(
       text,
       (chunk) => {
-        // 流式响应回调，逐字显示 AI 结果
-        setAiResult(prev => prev + chunk);
+        // 流式响应回调，使用 requestAnimationFrame 调度更新
+        requestAnimationFrame(() => {
+          // 使用数组 push 而非字符串拼接
+          setAiResult(prev => [...prev, chunk]);
+        });
       },
       () => {
         // 完成回调
@@ -149,7 +152,9 @@ const App: React.FC = () => {
       (error) => {
         // 错误回调
         console.error('AI processing error:', error);
-        setAiResult(`AI 处理失败: ${error.message}`);
+        requestAnimationFrame(() => {
+          setAiResult([`AI 处理失败: ${error.message}`]);
+        });
         setIsAIProcessing(false);
       }
     );
@@ -162,13 +167,14 @@ const App: React.FC = () => {
     if (!selectedNote) return;
     
     let newContent = selectedNote.content;
+    const aiResultText = aiResult.join('');
     
     if (isSelection && selectionStart !== null && selectionEnd !== null) {
       // 使用保存的选择范围替换文本
-      newContent = newContent.substring(0, selectionStart) + aiResult + newContent.substring(selectionEnd);
+      newContent = newContent.substring(0, selectionStart) + aiResultText + newContent.substring(selectionEnd);
     } else {
       // 替换整篇笔记内容
-      newContent = aiResult;
+      newContent = aiResultText;
     }
     
     // 更新笔记内容
@@ -183,7 +189,7 @@ const App: React.FC = () => {
    */
   const handleDiscardAIResult = () => {
     setIsAIModalOpen(false);
-    setAiResult('');
+    setAiResult([]);
     setIsAIProcessing(false);
   };
   
@@ -193,7 +199,7 @@ const App: React.FC = () => {
   const handleCloseAIModal = () => {
     if (!isAIProcessing) {
       setIsAIModalOpen(false);
-      setAiResult('');
+      setAiResult([]);
       setIsAIProcessing(false);
     }
   };

@@ -3,8 +3,8 @@ import React from 'react';
 interface AIModalProps {
   /** 是否显示悬浮框 */
   isOpen: boolean;
-  /** AI 处理的结果文本 */
-  aiResult: string;
+  /** AI 处理的结果文本数组 */
+  aiResult: string[];
   /** 是否正在加载 */
   isLoading: boolean;
   /** 接受 AI 结果的回调函数 */
@@ -44,7 +44,11 @@ const AIModal: React.FC<AIModalProps> = ({
         </div>
         <div className="modal-body">
           {isLoading && <div className="loading">AI 正在处理中...</div>}
-          {aiResult || <div style={{ color: '#666', fontStyle: 'italic' }}>暂无结果</div>}
+          {aiResult.length > 0 ? (
+            <div>{aiResult.join('')}</div>
+          ) : (
+            <div style={{ color: '#666', fontStyle: 'italic' }}>暂无结果</div>
+          )}
         </div>
         <div className="modal-footer">
           <button 
@@ -57,7 +61,7 @@ const AIModal: React.FC<AIModalProps> = ({
           <button 
             className="modal-btn modal-btn-primary" 
             onClick={onAccept}
-            disabled={isLoading || !aiResult}
+            disabled={isLoading || aiResult.length === 0}
           >
             接受
           </button>

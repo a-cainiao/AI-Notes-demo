@@ -85,7 +85,7 @@ export class AIService {
     text: string,
     onChunk: (chunk: string) => void,
     onComplete: () => void,
-    onError: (error: Error) => void,
+    _onError: (error: Error) => void,
     useDefaultConfig: boolean = false
   ): Promise<boolean> {
     // 根据是否使用默认配置选择 API Key 和提供商
@@ -153,6 +153,12 @@ export class AIService {
       const decoder = new TextDecoder();
       let done = false;
       let buffer = '';
+      
+      // 添加chunk合并相关变量
+      let chunkBuffer = ''; // 临时存储小chunk
+      let lastChunkTime = Date.now(); // 上次发送时间
+      const CHUNK_SIZE_THRESHOLD = 100; // 字符数阈值
+      const TIME_THRESHOLD = 50; // 时间阈值(ms)
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
@@ -171,6 +177,10 @@ export class AIService {
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
             if (data === '[DONE]') {
+              // 发送剩余buffer
+              if (chunkBuffer) {
+                onChunk(chunkBuffer);
+              }
               onComplete();
               // 记录成功日志
               const duration = Date.now() - startTime;
@@ -198,7 +208,15 @@ export class AIService {
               
               if (content) {
                 fullResponse += content;
-                onChunk(content);
+                chunkBuffer += content; // 累积到临时buffer
+                
+                // 检查是否需要发送合并后的chunk
+                const now = Date.now();
+                if (chunkBuffer.length >= CHUNK_SIZE_THRESHOLD || now - lastChunkTime >= TIME_THRESHOLD) {
+                  onChunk(chunkBuffer);
+                  chunkBuffer = '';
+                  lastChunkTime = now;
+                }
               }
             } catch (parseError) {
               console.error('Failed to parse AI response chunk:', parseError);
@@ -207,6 +225,11 @@ export class AIService {
         }
       }
 
+      // 发送剩余buffer
+      if (chunkBuffer) {
+        onChunk(chunkBuffer);
+      }
+      
       onComplete();
       // 记录成功日志
       const duration = Date.now() - startTime;

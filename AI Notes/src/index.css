@@ -259,6 +259,8 @@ body {
   font-size: 16px;
   line-height: 1.6;
   white-space: pre-wrap;
+  content-visibility: auto; /* 优化长文本渲染性能 */
+  contain-intrinsic-size: 1000px; /* 预估内容高度 */
 }
 
 .modal-footer {
