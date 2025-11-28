@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>阿里云模型接口测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .test-container {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background-color: #dc3545;
+        }
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>阿里云模型接口测试</h1>
+    
+    <div class="test-container">
+        <h2>测试配置</h2>
+        
+        <div class="form-group">
+            <label for="apiKey">阿里云 API Key:</label>
+            <input type="text" id="apiKey" placeholder="请输入您的阿里云 API Key">
+        </div>
+        
+        <div class="form-group">
+            <label for="testText">测试文本:</label>
+            <textarea id="testText" placeholder="请输入要测试的文本">请帮我总结一下人工智能的发展历程</textarea>
+        </div>
+        
+        <div>
+            <button class="btn" id="testBtn">开始测试</button>
+            <button class="btn btn-danger" id="clearBtn">清除结果</button>
+        </div>
+        
+        <div class="status" id="status"></div>
+        
+        <div class="result" id="result"></div>
+    </div>
+
+    <script type="module">
+        // 导入 AI 服务
+        import { aiService } from '../src/services/aiService.js';
+        
+        // DOM 元素
+        const apiKeyInput = document.getElementById('apiKey');
+        const testTextInput = document.getElementById('testText');
+        const testBtn = document.getElementById('testBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const status = document.getElementById('status');
+        const result = document.getElementById('result');
+        
+        // 测试状态
+        let isTesting = false;
+        
+        // 开始测试
+        testBtn.addEventListener('click', async () => {
+            const apiKey = apiKeyInput.value.trim();
+            const testText = testTextInput.value.trim();
+            
+            if (!apiKey) {
+                status.textContent = '请输入 API Key';
+                status.className = 'status error';
+                return;
+            }
+            
+            if (!testText) {
+                status.textContent = '请输入测试文本';
+                status.className = 'status error';
+                return;
+            }
+            
+            // 重置状态
+            status.innerHTML = '<div class="loading"></div>测试中...';
+            status.className = 'status';
+            result.textContent = '';
+            testBtn.disabled = true;
+            isTesting = true;
+            
+            try {
+                // 设置 API Key 和模型提供商
+                aiService.setProvider('aliyun');
+                aiService.setApiKey(apiKey);
+                
+                // 调用 AI 服务
+                await new Promise((resolve, reject) => {
+                    let responseText = '';
+                    let isComplete = false;
+                    
+                    aiService.processText(
+                        testText,
+                        (chunk) => {
+                            responseText += chunk;
+                            result.textContent = responseText;
+                        },
+                        () => {
+                            isComplete = true;
+                            status.textContent = '测试成功';
+                            status.className = 'status success';
+                            testBtn.disabled = false;
+                            isTesting = false;
+                            resolve();
+                        },
+                        (error) => {
+                            if (!isComplete) {
+                                status.textContent = `测试失败: ${error.message}`;
+                                status.className = 'status error';
+                                testBtn.disabled = false;
+                                isTesting = false;
+                                reject(error);
+                            }
+                        }
+                    );
+                    
+                    // 设置超时
+                    setTimeout(() => {
+                        if (!isComplete) {
+                            status.textContent = '测试超时';
+                            status.className = 'status error';
+                            testBtn.disabled = false;
+                            isTesting = false;
+                            reject(new Error('测试超时'));
+                        }
+                    }, 60000); // 60秒超时
+                });
+                
+            } catch (error) {
+                console.error('测试失败:', error);
+            }
+        });
+        
+        // 清除结果
+        clearBtn.addEventListener('click', () => {
+            if (isTesting) {
+                status.textContent = '测试中，无法清除';
+                status.className = 'status error';
+                return;
+            }
+            
+            status.textContent = '';
+            result.textContent = '';
+        });
+    </script>
+</body>
+</html>
