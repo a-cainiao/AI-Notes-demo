@@ -43,11 +43,8 @@ const AIModal: React.FC<AIModalProps> = ({
           </button>
         </div>
         <div className="modal-body">
-          {isLoading ? (
-            <div className="loading">AI 正在处理中...</div>
-          ) : (
-            aiResult || <div style={{ color: '#666', fontStyle: 'italic' }}>暂无结果</div>
-          )}
+          {isLoading && <div className="loading">AI 正在处理中...</div>}
+          {aiResult || <div style={{ color: '#666', fontStyle: 'italic' }}>暂无结果</div>}
         </div>
         <div className="modal-footer">
           <button 
