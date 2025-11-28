@@ -21,6 +21,10 @@ export interface AIConfig {
 export class AIService {
   private apiKey: string | null = null;
   private provider: ModelProvider = 'aliyun';
+  // 默认API Key，从环境变量读取
+  private readonly DEFAULT_API_KEY = import.meta.env.VITE_AI_API_KEY || null;
+  // 默认模型提供商，从环境变量读取
+  private readonly DEFAULT_PROVIDER = (import.meta.env.VITE_AI_PROVIDER as ModelProvider) || 'aliyun';
 
   /**
    * 设置 API Key
@@ -32,6 +36,7 @@ export class AIService {
 
   /**
    * 获取保存的 API Key
+   * 优先级：内存缓存 > localStorage > null
    */
   getApiKey(): string | null {
     if (!this.apiKey) {
@@ -58,6 +63,7 @@ export class AIService {
 
   /**
    * 获取保存的模型提供商
+   * 优先级：内存缓存 > localStorage > 默认值 'aliyun'
    */
   getProvider(): ModelProvider {
     if (!this.provider) {
@@ -68,26 +74,28 @@ export class AIService {
   }
 
   /**
-   * 处理文本，返回流式响应
+   * 使用指定的配置处理文本，返回流式响应
    * @param text 要处理的文本
    * @param onChunk 流式响应回调函数
    * @param onComplete 完成回调函数
    * @param onError 错误回调函数
+   * @param useDefaultConfig 是否使用默认配置
    */
-  async processText(
+  private async processTextWithConfig(
     text: string,
     onChunk: (chunk: string) => void,
     onComplete: () => void,
-    onError: (error: Error) => void
-  ): Promise<void> {
-    const apiKey = this.getApiKey();
+    onError: (error: Error) => void,
+    useDefaultConfig: boolean = false
+  ): Promise<boolean> {
+    // 根据是否使用默认配置选择 API Key 和提供商
+    const apiKey = useDefaultConfig ? this.DEFAULT_API_KEY : this.getApiKey();
+    const provider = useDefaultConfig ? this.DEFAULT_PROVIDER : this.getProvider();
+    
     if (!apiKey) {
-      const error = new Error('请先设置 API Key');
-      onError(error);
-      return;
+      return false;
     }
 
-    const provider = this.getProvider();
     const model = provider === 'openai' ? 'gpt-3.5-turbo' : 'qwen-turbo';
     const startTime = Date.now();
     let fullResponse = '';
@@ -96,7 +104,6 @@ export class AIService {
       let response: Response;
       
       // 根据不同的模型提供商，生成不同的请求
-      // 阿里云兼容模式 API 请求
       const baseUrl = provider === 'openai' ? 'https://api.openai.com' : 'https://dashscope.aliyuncs.com';
       response = await fetch(`${baseUrl}/compatible-mode/v1/chat/completions`, {
         method: 'POST',
@@ -179,7 +186,7 @@ export class AIService {
                   duration
                 }
               });
-              return;
+              return true;
             }
             try {
               const json = JSON.parse(data);
@@ -215,10 +222,10 @@ export class AIService {
           duration
         }
       });
+      return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'AI 处理失败';
       console.error('AI processing error:', error);
-      onError(error instanceof Error ? error : new Error('AI 处理失败'));
       
       // 记录错误日志
       const duration = Date.now() - startTime;
@@ -235,6 +242,39 @@ export class AIService {
         },
         error: errorMessage
       });
+      
+      return false;
+    }
+  }
+
+  /**
+   * 处理文本，返回流式响应
+   * @param text 要处理的文本
+   * @param onChunk 流式响应回调函数
+   * @param onComplete 完成回调函数
+   * @param onError 错误回调函数
+   */
+  async processText(
+    text: string,
+    onChunk: (chunk: string) => void,
+    onComplete: () => void,
+    onError: (error: Error) => void
+  ): Promise<void> {
+    // 先使用用户配置尝试调用 API
+    const userSuccess = await this.processTextWithConfig(text, onChunk, onComplete, onError, false);
+    
+    // 如果用户配置调用失败，且有默认 API Key，尝试使用默认配置重新调用
+    if (!userSuccess && this.DEFAULT_API_KEY) {
+      console.log('用户配置调用失败，尝试使用默认配置重新调用');
+      const defaultSuccess = await this.processTextWithConfig(text, onChunk, onComplete, onError, true);
+      
+      // 如果默认配置调用也失败，调用 onError 回调
+      if (!defaultSuccess) {
+        onError(new Error('AI 处理失败，用户配置和默认配置均无法正常调用 API'));
+      }
+    } else if (!userSuccess) {
+      // 如果用户配置调用失败，且没有默认 API Key，调用 onError 回调
+      onError(new Error('请先设置 API Key'));
     }
   }
 }
