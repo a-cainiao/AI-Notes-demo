@@ -120,7 +120,7 @@ export class AIService {
       let response: Response;
       
       // 根据处理类型生成不同的提示
-      let systemPrompt = '你是一个专业的写作助手，请帮助用户处理他们的文本。保持原意，提高表达质量。';
+      let systemPrompt = '你是一个专业的写作助手，请帮助用户处理他们的文本。保持原意，提高表达质量，注意不要生成与内容无关或冗余的文本。';
       let userPrompt = text;
       
       switch (processType) {

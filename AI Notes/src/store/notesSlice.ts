@@ -155,11 +155,9 @@ export const notesSlice = createSlice({
     // 更新笔记
     builder
       .addCase(updateNote.pending, (state) => {
-        state.isLoading = true;
         state.error = null;
       })
       .addCase(updateNote.fulfilled, (state, action: PayloadAction<Note>) => {
-        state.isLoading = false;
         const index = state.notes.findIndex((note) => note.id === action.payload.id);
         if (index !== -1) {
           state.notes[index] = action.payload;
@@ -170,7 +168,6 @@ export const notesSlice = createSlice({
         state.error = null;
       })
       .addCase(updateNote.rejected, (state, action) => {
-        state.isLoading = false;
         state.error = action.payload as string;
       });
 
