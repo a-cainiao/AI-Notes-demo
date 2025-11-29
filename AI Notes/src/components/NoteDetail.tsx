@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Note } from '../types/note';
 
 interface NoteDetailProps {
@@ -30,6 +30,10 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
   const internalContentRef = useRef<HTMLTextAreaElement>(null);
   // 使用外部传入的 ref 或内部 ref
   const textareaRef = contentRef || internalContentRef;
+  // 防抖定时器 ref
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // 自动保存间隔（毫秒）
+  const AUTO_SAVE_INTERVAL = 30000;
 
   // 当选中的笔记变化时，更新本地状态
   useEffect(() => {
@@ -39,12 +43,34 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
     }
   }, [note]);
 
+  // 组件卸载时清除定时器
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // 防抖处理更新笔记
+  const debouncedUpdateNote = useCallback((id: string, updates: Partial<Note>) => {
+    // 清除之前的定时器
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // 设置新的定时器
+    debounceTimerRef.current = setTimeout(() => {
+      onUpdateNote(id, updates);
+    }, AUTO_SAVE_INTERVAL);
+  }, [onUpdateNote]);
+
   // 处理标题变化
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
     setTitle(newTitle);
     if (note) {
-      onUpdateNote(note.id, { title: newTitle });
+      debouncedUpdateNote(note.id, { title: newTitle });
     }
   };
 
@@ -53,7 +79,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
     const newContent = e.target.value;
     setContent(newContent);
     if (note) {
-      onUpdateNote(note.id, { content: newContent });
+      debouncedUpdateNote(note.id, { content: newContent });
     }
   };
 
@@ -61,6 +87,19 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
   const handleDeleteNote = () => {
     if (note) {
       onDeleteNote(note.id);
+    }
+  };
+
+  // 处理手动保存
+  const handleSaveNote = () => {
+    if (note) {
+      // 清除现有的防抖定时器
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      // 立即保存当前内容
+      onUpdateNote(note.id, { title, content });
     }
   };
 
@@ -124,6 +163,12 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
     <div className="note-detail">
       <div className="note-detail-header">
         <div className="note-detail-actions">
+          <button 
+            className="save-btn"
+            onClick={handleSaveNote}
+          >
+            保存
+          </button>
           <button 
             className="ai-btn"
             onClick={handleAIProcess}
