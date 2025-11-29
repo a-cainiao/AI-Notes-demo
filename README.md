@@ -96,8 +96,8 @@ AI Notes/
 
 ### 1. 克隆项目
 ```bash
-git clone <repository-url>
-cd AI Notes
+git clone https://github.com/a-cainiao/AI-Notes-demo.git
+cd AI-Notes-demo
 ```
 
 ### 2. 配置后端
@@ -177,37 +177,6 @@ npm run dev
 npm run test
 npm run test:coverage
 ```
-
-### 后端测试
-```bash
-cd backend
-npm run test
-```
-
-## 优化方案
-
-### 1. 性能优化
-- 实现虚拟滚动，优化大量笔记列表渲染
-- 增加缓存机制，减少重复请求
-- 优化AI处理算法，提高响应速度
-
-### 2. 功能扩展
-- 添加笔记分享功能
-- 实现笔记导出（PDF、Markdown等）
-- 增加协作编辑功能
-- 支持更多AI处理模型
-
-### 3. 用户体验
-- 优化移动端响应式设计
-- 增加主题切换功能
-- 实现快捷键支持
-- 改进编辑器功能，支持富文本
-
-### 4. 安全增强
-- 实现双因素认证
-- 增加API请求频率限制
-- 完善日志审计功能
-- 实现数据备份和恢复
 
 
 
