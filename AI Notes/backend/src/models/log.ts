@@ -8,17 +8,30 @@ import { RowDataPacket, ResultSetHeader } from 'mysql2';
  */
 export class LogModel {
   /**
-   * 获取用户的所有未删除日志
+   * 获取用户的所有未删除日志（支持分页）
    * @param userId 用户ID
-   * @returns 日志列表
+   * @param page 页码（从1开始）
+   * @param pageSize 每页记录数
+   * @returns 日志列表和总记录数
    */
-  static async findByUserId(userId: number): Promise<Log[]> {
-    const [rows] = await pool.execute<RowDataPacket[]>(
-      'SELECT * FROM logs WHERE user_id = ? AND deleted_at IS NULL ORDER BY created_at DESC',
-      [userId]
+  static async findByUserId(userId: number, page: number = 1, pageSize: number = 10): Promise<{ logs: Log[], total: number }> {
+    // 计算偏移量
+    const offset = (page - 1) * pageSize;
+    
+    // 使用query方法代替execute方法，避免参数类型问题
+    // 直接在SQL语句中拼接数值参数，因为它们都是安全的数字类型
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT * FROM logs WHERE user_id = ${userId} AND deleted_at IS NULL ORDER BY created_at DESC LIMIT ${pageSize} OFFSET ${offset}`
     );
     
-    return rows.map(row => ({
+    // 获取总记录数
+    const [countRows] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(*) as total FROM logs WHERE user_id = ${userId} AND deleted_at IS NULL`
+    );
+    
+    const total = countRows[0].total as number;
+    
+    const logs = rows.map(row => ({
       id: row.id,
       userId: row.user_id,
       level: row.level,
@@ -28,6 +41,8 @@ export class LogModel {
       createdAt: row.created_at,
       deletedAt: row.deleted_at
     })) as Log[];
+    
+    return { logs, total };
   }
 
   /**

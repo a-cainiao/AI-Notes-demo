@@ -1,6 +1,6 @@
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { login, register, logout, refreshUser, clearError } from '../store/authSlice';
-import { LoginRequest, RegisterRequest } from '../types/user';
+
 
 /**
  * 自定义的 useAuth hook，使用 Redux 状态

@@ -113,11 +113,13 @@ class NoteService {
     } catch (error) {
       console.error('Failed to create note:', error);
       // 如果 API 调用失败，返回一个临时笔记对象
-      const now = new Date().toISOString();
+      const now = new Date();
       return {
         id: this.generateId(),
         title,
         content,
+        categoryId: null,
+        tags: [],
         createdAt: now,
         updatedAt: now
       };

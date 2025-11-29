@@ -8,15 +8,19 @@ import { CreateLogRequest } from '../types';
  */
 export class LogController {
   /**
-   * 获取用户的所有日志
+   * 获取用户的所有日志（支持分页）
    * @param req 请求对象
    * @param res 响应对象
    */
   static async getLogs(req: Request, res: Response): Promise<void> {
     try {
       const userId = (req as any).user.id;
-      const logs = await LogModel.findByUserId(userId);
-      res.json(logs);
+      // 获取分页参数，默认第1页，每页10条
+      const page = parseInt(req.query.page as string) || 1;
+      const pageSize = parseInt(req.query.pageSize as string) || 10;
+      
+      const { logs, total } = await LogModel.findByUserId(userId, page, pageSize);
+      res.json({ logs, total, page, pageSize });
     } catch (error) {
       res.status(500).json({ message: '获取日志失败', error });
     }

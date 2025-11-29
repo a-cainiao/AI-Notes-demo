@@ -243,7 +243,7 @@ const App: React.FC = () => {
     <div className="app-container">
       <NotesList
         notes={notes}
-        selectedNoteId={selectedNote?.id}
+        selectedNoteId={selectedNote?.id || null}
         onSelectNote={handleSelectNote}
         onCreateNote={handleCreateNote}
         onOpenSettings={handleOpenSettings}

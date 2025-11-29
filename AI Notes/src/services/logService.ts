@@ -33,15 +33,23 @@ export class LogService {
   private baseUrl = '/api';
 
   /**
-   * 获取所有日志
+   * 获取所有日志（支持分页）
+   * @param page 页码（从1开始）
+   * @param pageSize 每页记录数
    */
-  async getLogs(): Promise<AILog[]> {
+  async getLogs(page: number = 1, pageSize: number = 10): Promise<{ logs: AILog[], total: number, page: number, pageSize: number }> {
     const token = authService.getToken();
     if (!token) {
-      return [];
+      return { logs: [], total: 0, page, pageSize };
     }
     
-    const response = await fetch(`${this.baseUrl}/logs`, {
+    // 构建查询字符串
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      pageSize: pageSize.toString()
+    });
+    
+    const response = await fetch(`${this.baseUrl}/logs?${queryParams}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -55,15 +63,22 @@ export class LogService {
     // 检查响应体是否为空
     const text = await response.text();
     if (!text) {
-      return [];
+      return { logs: [], total: 0, page, pageSize };
     }
     
-    const logs = JSON.parse(text);
+    const result = JSON.parse(text);
     // 转换日期格式并添加timestamp字段以保持兼容性
-    return logs.map((log: any) => ({
+    const logs = result.logs.map((log: any) => ({
       ...log,
       timestamp: new Date(log.createdAt).getTime()
     }));
+    
+    return {
+      logs,
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize
+    };
   }
 
   /**
