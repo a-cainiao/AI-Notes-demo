@@ -51,7 +51,10 @@ global.TextEncoder = class MockTextEncoder {
 } as any;
 
 global.TextDecoder = class MockTextDecoder {
-  decode(uint8Array: Uint8Array): string {
+  decode(uint8Array: Uint8Array | undefined): string {
+    if (!uint8Array) {
+      return '';
+    }
     return Buffer.from(uint8Array).toString();
   }
   // 添加缺失的属性以满足类型要求

@@ -1,154 +1,345 @@
-// 导入类型，但不导入值
-import type { LogLevel } from '../logService';
+import { LogService, LogLevel } from '../logService';
 
-// 模拟logService模块，包括单例实例
-jest.mock('../logService', () => {
-  const mockLog = jest.fn();
-  const mockGetLogs = jest.fn(() => []);
-  const mockClearLogs = jest.fn();
-  const mockDeleteLog = jest.fn();
-  
-  const MockLogService = jest.fn().mockImplementation(() => ({
-    log: mockLog,
-    getLogs: mockGetLogs,
-    clearLogs: mockClearLogs,
-    deleteLog: mockDeleteLog,
-  }));
-  
-  return {
-    LogService: MockLogService,
-    logService: {
-      log: mockLog,
-      getLogs: mockGetLogs,
-      clearLogs: mockClearLogs,
-      deleteLog: mockDeleteLog,
-    },
-  };
-});
+// 模拟fetch API
+global.fetch = jest.fn();
+
+// 模拟authService模块
+jest.mock('../authService', () => ({
+  authService: {
+    getToken: jest.fn().mockReturnValue('test-token'),
+    isLoggedIn: jest.fn().mockReturnValue(true),
+    getUser: jest.fn().mockReturnValue(null),
+    saveAuthData: jest.fn(),
+    clearAuthData: jest.fn(),
+    login: jest.fn(),
+    register: jest.fn(),
+    getCurrentUser: jest.fn(),
+    logout: jest.fn(),
+  },
+}));
+
+// 导入被模拟的authService
+import { authService } from '../authService';
 
 describe('LogService', () => {
+  let logService: LogService;
+  
   beforeEach(() => {
     // 清除所有模拟调用
     jest.clearAllMocks();
-    // 确保localStorage.store是一个对象，并清空它
-    const localStorageMock = global.localStorage as any;
-    localStorageMock.store = {};
-  });
-  
-  describe('log', () => {
-    it('should record a log entry', () => {
-      // 直接导入LogService
-      const { LogService } = require('../logService');
-      const logService = new LogService();
-      const logData = {
-        level: 'success' as LogLevel,
-        request: {
-          text: 'test text',
-          model: 'test-model',
-          provider: 'test-provider'
-        },
-        response: {
-          content: 'test response',
-          duration: 1000
-        }
-      };
-      
-      logService.log(logData);
-      
-      // 验证log方法被调用
-      expect(logService.log).toHaveBeenCalledWith(logData);
-    });
     
-    it('should limit logs to 100 entries', () => {
-      // 直接导入LogService
-      const { LogService } = require('../logService');
-      const logService = new LogService();
-      const logData = {
-        level: 'success' as LogLevel,
-        request: {
-          text: 'test text',
-          model: 'test-model',
-          provider: 'test-provider'
-        },
-        response: {
-          content: 'test response',
-          duration: 1000
-        }
-      };
-      
-      // 添加101条日志
-      for (let i = 0; i < 101; i++) {
-        logService.log(logData);
-      }
-      
-      // 验证log方法被调用了101次
-      expect(logService.log).toHaveBeenCalledTimes(101);
-    });
+    // 确保 authService.getToken 返回 test-token
+    (authService.getToken as jest.Mock).mockReturnValue('test-token');
+    
+    // 创建新的LogService实例
+    logService = new LogService();
   });
   
   describe('getLogs', () => {
-    it('should return all logs', () => {
-      // 直接导入LogService
-      const { LogService } = require('../logService');
-      const logService = new LogService();
+    it('should return empty logs when no token is available', async () => {
+      // 模拟authService.getToken返回null
+      (authService.getToken as jest.Mock).mockReturnValue(null);
       
-      // 验证getLogs方法被调用
-      const logs = logService.getLogs();
-      expect(logService.getLogs).toHaveBeenCalled();
-      expect(logs).toEqual([]);
+      const result = await logService.getLogs();
+      
+      expect(result).toEqual({ logs: [], total: 0, page: 1, pageSize: 10 });
     });
     
-    it('should return an empty array when no logs exist', () => {
-      // 直接导入LogService
-      const { LogService } = require('../logService');
-      const logService = new LogService();
-      const logs = logService.getLogs();
-      expect(logs).toEqual([]);
+    it('should fetch logs with token', async () => {
+      const mockLogs = [{
+        id: '1',
+        createdAt: '2023-01-01T00:00:00.000Z',
+        timestamp: 1672531200000,
+        level: 'success',
+        request: {
+          text: 'test text',
+          model: 'test-model',
+          provider: 'test-provider'
+        },
+        response: {
+          content: 'test response',
+          duration: 1000
+        }
+      }];
+      
+      const mockResponse = {
+        logs: mockLogs,
+        total: 1,
+        page: 1,
+        pageSize: 10
+      };
+      
+      // 模拟fetch成功返回，同时提供text和json方法
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        text: jest.fn().mockResolvedValue(JSON.stringify(mockResponse)),
+        json: jest.fn().mockResolvedValue(mockResponse)
+      });
+      
+      const result = await logService.getLogs();
+      
+      expect(global.fetch).toHaveBeenCalledWith('/api/logs?page=1&pageSize=10', {
+        headers: {
+          'Authorization': 'Bearer test-token',
+          'Content-Type': 'application/json'
+        }
+      });
+      expect(result).toEqual({
+        logs: mockLogs.map(log => ({
+          ...log,
+          timestamp: new Date(log.createdAt).getTime()
+        })),
+        total: 1,
+        page: 1,
+        pageSize: 10
+      });
+    });
+    
+    it('should handle fetch error', async () => {
+      // 模拟fetch失败返回
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        text: jest.fn().mockResolvedValue('')
+      });
+      
+      await expect(logService.getLogs()).rejects.toThrow('Failed to fetch logs');
+    });
+    
+    it('should return empty logs when response is empty', async () => {
+      // 模拟fetch返回空响应
+      const mockResponse = { logs: [], total: 0, page: 1, pageSize: 10 };
+      
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        text: jest.fn().mockResolvedValue(JSON.stringify(mockResponse)),
+        json: jest.fn().mockResolvedValue(mockResponse)
+      });
+      
+      const result = await logService.getLogs();
+      
+      expect(result.logs).toEqual([]);
+      expect(result.total).toBe(0);
+    });
+    
+    it('should use custom page and pageSize', async () => {
+      // 模拟fetch成功返回
+      const mockResponse = { logs: [], total: 0, page: 2, pageSize: 20 };
+      
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        text: jest.fn().mockResolvedValue(JSON.stringify(mockResponse)),
+        json: jest.fn().mockResolvedValue(mockResponse)
+      });
+      
+      const result = await logService.getLogs(2, 20);
+      
+      expect(global.fetch).toHaveBeenCalledWith('/api/logs?page=2&pageSize=20', expect.any(Object));
+      expect(result.page).toBe(2);
+      expect(result.pageSize).toBe(20);
     });
   });
   
-  describe('clearLogs', () => {
-    it('should clear all logs', () => {
-      // 直接导入LogService
-      const { LogService } = require('../logService');
-      const logService = new LogService();
+  describe('log', () => {
+    it('should return mock log when no token is available', async () => {
+      // 模拟authService.getToken返回null
+      (authService.getToken as jest.Mock).mockReturnValue(null);
       
-      // 验证clearLogs方法被调用
-      logService.clearLogs();
-      expect(logService.clearLogs).toHaveBeenCalled();
+      const logData = {
+        level: 'success' as LogLevel,
+        request: {
+          text: 'test text',
+          model: 'test-model',
+          provider: 'test-provider'
+        },
+        response: {
+          content: 'test response',
+          duration: 1000
+        }
+      };
+      
+      const result = await logService.log(logData);
+      
+      expect(result).toEqual({
+        ...logData,
+        id: expect.any(String),
+        timestamp: expect.any(Number)
+      });
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+    
+    it('should send log to server when token is available', async () => {
+      const logData = {
+        level: 'success' as LogLevel,
+        request: {
+          text: 'test text',
+          model: 'test-model',
+          provider: 'test-provider'
+        },
+        response: {
+          content: 'test response',
+          duration: 1000
+        }
+      };
+      
+      const mockResponse = {
+        id: '1',
+        createdAt: '2023-01-01T00:00:00.000Z',
+        ...logData
+      };
+      
+      // 模拟fetch成功返回
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+        text: jest.fn().mockResolvedValue(JSON.stringify(mockResponse))
+      });
+      
+      const result = await logService.log(logData);
+      
+      expect(global.fetch).toHaveBeenCalledWith('/api/logs', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer test-token',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(logData)
+      });
+      expect(result).toEqual({
+        ...mockResponse,
+        timestamp: new Date(mockResponse.createdAt).getTime()
+      });
+    });
+    
+    it('should throw error when log fails', async () => {
+      const logData = {
+        level: 'success' as LogLevel,
+        request: {
+          text: 'test text',
+          model: 'test-model',
+          provider: 'test-provider'
+        },
+        response: {
+          content: 'test response',
+          duration: 1000
+        }
+      };
+      
+      // 模拟fetch失败返回
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        text: jest.fn().mockResolvedValue('')
+      });
+      
+      await expect(logService.log(logData)).rejects.toThrow('Failed to create log');
+    });
+    
+    it('should handle error logs', async () => {
+      const logData = {
+        level: 'error' as LogLevel,
+        request: {
+          text: 'test text',
+          model: 'test-model',
+          provider: 'test-provider'
+        },
+        response: {
+          content: 'test response',
+          duration: 1000
+        },
+        error: 'test error'
+      };
+      
+      const mockResponse = {
+        id: '1',
+        createdAt: '2023-01-01T00:00:00.000Z',
+        ...logData
+      };
+      
+      // 模拟fetch成功返回
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: jest.fn().mockResolvedValue(mockResponse),
+        text: jest.fn().mockResolvedValue(JSON.stringify(mockResponse))
+      });
+      
+      const result = await logService.log(logData);
+      
+      expect(result.error).toBe('test error');
     });
   });
   
   describe('deleteLog', () => {
-    it('should delete a specific log', () => {
-      // 直接导入LogService
-      const { LogService } = require('../logService');
-      const logService = new LogService();
+    it('should return without action when no token is available', async () => {
+      // 模拟authService.getToken返回null
+      (authService.getToken as jest.Mock).mockReturnValue(null);
       
-      // 验证deleteLog方法被调用
-      logService.deleteLog('test-id');
-      expect(logService.deleteLog).toHaveBeenCalledWith('test-id');
+      await logService.deleteLog('test-id');
+      
+      expect(global.fetch).not.toHaveBeenCalled();
     });
     
-    it('should not throw error when deleting non-existent log', () => {
-      // 直接导入LogService
-      const { LogService } = require('../logService');
-      const logService = new LogService();
-      expect(() => {
-        logService.deleteLog('non-existent-id');
-      }).not.toThrow();
+    it('should delete log with token', async () => {
+      // 模拟fetch成功返回
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        text: jest.fn().mockResolvedValue('')
+      });
+      
+      await logService.deleteLog('test-id');
+      
+      expect(global.fetch).toHaveBeenCalledWith('/api/logs/test-id', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer test-token'
+        }
+      });
+    });
+    
+    it('should throw error when delete fails', async () => {
+      // 模拟fetch失败返回
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        text: jest.fn().mockResolvedValue('')
+      });
+      
+      await expect(logService.deleteLog('test-id')).rejects.toThrow('Failed to delete log');
     });
   });
   
-  describe('loadLogs', () => {
-    it('should handle missing logs in localStorage', () => {
-      // 直接导入LogService
-      const { LogService } = require('../logService');
-      // 创建新实例，触发loadLogs
-      new LogService();
+  describe('clearLogs', () => {
+    it('should return without action when no token is available', async () => {
+      // 模拟authService.getToken返回null
+      (authService.getToken as jest.Mock).mockReturnValue(null);
       
-      // 验证LogService构造函数被调用
-      expect(LogService).toHaveBeenCalled();
+      await logService.clearLogs();
+      
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+    
+    it('should clear logs with token', async () => {
+      // 模拟fetch成功返回
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        text: jest.fn().mockResolvedValue('')
+      });
+      
+      await logService.clearLogs();
+      
+      expect(global.fetch).toHaveBeenCalledWith('/api/logs', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': 'Bearer test-token'
+        }
+      });
+    });
+    
+    it('should throw error when clear fails', async () => {
+      // 模拟fetch失败返回
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: false,
+        text: jest.fn().mockResolvedValue('')
+      });
+      
+      await expect(logService.clearLogs()).rejects.toThrow('Failed to clear logs');
     });
   });
 });

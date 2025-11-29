@@ -25,10 +25,25 @@ export interface AIConfig {
 export type AIProcessType = 'expand' | 'rewrite' | 'summarize';
 
 export class AIService {
-  // 默认API Key，从环境变量读取
-  private readonly DEFAULT_API_KEY = import.meta.env.VITE_AI_API_KEY || null;
-  // 默认模型提供商，从环境变量读取
-  private readonly DEFAULT_PROVIDER = (import.meta.env.VITE_AI_PROVIDER as ModelProvider) || 'aliyun';
+  // 默认API Key，从环境变量读取（兼容浏览器和Node.js环境）
+  private readonly DEFAULT_API_KEY = this.getEnvVariable('VITE_AI_API_KEY') || null;
+  // 默认模型提供商，从环境变量读取（兼容浏览器和Node.js环境）
+  private readonly DEFAULT_PROVIDER = (this.getEnvVariable('VITE_AI_PROVIDER') as ModelProvider) || 'aliyun';
+
+  /**
+   * 获取环境变量，兼容浏览器和Node.js环境
+   */
+  private getEnvVariable(key: string): string | undefined {
+    // 浏览器环境（Vite）
+    if (typeof window !== 'undefined' && (window as any).import?.meta?.env) {
+      return (window as any).import.meta.env[key];
+    }
+    // Node.js环境（Jest）
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env[key];
+    }
+    return undefined;
+  }
 
   /**
    * 获取保存的 API Key 和模型配置
@@ -48,13 +63,13 @@ export class AIService {
         }
       });
       
-      if (!response.ok) {
+      if (!response || !response.ok) {
         return null;
       }
       
       const apiKeys = await response.json();
       // 目前默认返回第一个API Key配置，后续可以根据提供商和模型选择
-      return apiKeys.length > 0 ? {
+      return apiKeys && apiKeys.length > 0 ? {
         apiKey: apiKeys[0].apiKey,
         provider: apiKeys[0].provider as ModelProvider,
         model: apiKeys[0].model

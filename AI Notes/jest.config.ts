@@ -7,7 +7,11 @@ const config = {
   testEnvironment: 'jest-environment-jsdom',
   moduleFileExtensions: ['js', 'json', 'jsx', 'ts', 'tsx'],
   transform: {
-    '^.+\.(ts|tsx)$': 'ts-jest',
+    '^.+\.(ts|tsx)$': ['ts-jest', {
+      tsconfig: {
+        module: 'ESNext',
+      },
+    }],
   },
   testMatch: [
     '<rootDir>/src/**/__tests__/**/*.(test|spec).ts?(x)',
@@ -16,13 +20,6 @@ const config = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   coverageDirectory: '<rootDir>/coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  globals: {
-    'ts-jest': {
-      tsconfig: {
-        module: 'ESNext',
-      },
-    },
-  },
   // 允许Jest访问环境变量
   setupFiles: ['dotenv/config'],
 };
