@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import NotesList from './components/NotesList';
-import NoteDetail from './components/NoteDetail';
+import NoteDetail, { AIProcessType } from './components/NoteDetail';
 import AIModal from './components/AIModal';
 import ApiKeyManager from './components/ApiKeyManager';
 import Logs from './components/Logs';
@@ -196,7 +196,7 @@ const App: React.FC = () => {
   /**
    * 触发 AI 处理
    */
-  const handleAIProcess = (text: string, isSelection: boolean, start: number = 0, end: number = 0) => {
+  const handleAIProcess = (text: string, isSelection: boolean, processType: AIProcessType, start: number = 0, end: number = 0) => {
     // 检查是否已登录
     if (!isAuthenticated) {
       handleOpenLoginModal();
@@ -214,6 +214,7 @@ const App: React.FC = () => {
     // 调用 AI 服务处理文本
     aiService.processText(
       text,
+      processType,
       (chunk) => {
         // 流式响应回调，使用 requestAnimationFrame 调度更新
         requestAnimationFrame(() => {

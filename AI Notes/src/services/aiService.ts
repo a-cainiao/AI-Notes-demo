@@ -19,6 +19,11 @@ export interface AIConfig {
   apiKey: string;
 }
 
+/**
+ * AI 处理类型
+ */
+export type AIProcessType = 'expand' | 'rewrite' | 'summarize';
+
 export class AIService {
   // 默认API Key，从环境变量读取
   private readonly DEFAULT_API_KEY = import.meta.env.VITE_AI_API_KEY || null;
@@ -67,6 +72,7 @@ export class AIService {
   /**
    * 使用指定的配置处理文本，返回流式响应
    * @param text 要处理的文本
+   * @param processType AI 处理类型
    * @param onChunk 流式响应回调函数
    * @param onComplete 完成回调函数
    * @param onError 错误回调函数
@@ -74,6 +80,7 @@ export class AIService {
    */
   private async processTextWithConfig(
     text: string,
+    processType: AIProcessType,
     onChunk: (chunk: string) => void,
     onComplete: () => void,
     _onError: (error: Error) => void,
@@ -94,6 +101,25 @@ export class AIService {
     try {
       let response: Response;
       
+      // 根据处理类型生成不同的提示
+      let systemPrompt = '你是一个专业的写作助手，请帮助用户处理他们的文本。保持原意，提高表达质量。';
+      let userPrompt = text;
+      
+      switch (processType) {
+        case 'expand':
+          systemPrompt = '你是一个专业的写作助手，请帮助用户扩展他们的文本。保持原意，丰富内容，增加细节，使文本更加全面和深入。';
+          userPrompt = `请扩展以下文本，增加更多细节和内容，保持原意不变：\n\n${text}`;
+          break;
+        case 'rewrite':
+          systemPrompt = '你是一个专业的写作助手，请帮助用户重写他们的文本。保持原意，改进表达方式，使文本更加流畅、生动和专业。';
+          userPrompt = `请重写以下文本，改进表达方式，保持原意不变：\n\n${text}`;
+          break;
+        case 'summarize':
+          systemPrompt = '你是一个专业的写作助手，请帮助用户总结他们的文本。保持核心内容，提炼关键信息，使文本更加简洁和精炼。';
+          userPrompt = `请总结以下文本，提炼核心内容和关键信息：\n\n${text}`;
+          break;
+      }
+      
       // 根据不同的模型提供商，生成不同的请求
       const baseUrl = provider === 'openai' ? 'https://api.openai.com' : 'https://dashscope.aliyuncs.com';
       response = await fetch(`${baseUrl}/compatible-mode/v1/chat/completions`, {
@@ -107,11 +133,11 @@ export class AIService {
           messages: [
             {
               role: 'system',
-              content: '你是一个专业的写作助手，请帮助用户润色、扩展或总结他们的文本。保持原意，提高表达质量。'
+              content: systemPrompt
             },
             {
               role: 'user',
-              content: text
+              content: userPrompt
             }
           ],
           stream: true
@@ -261,23 +287,25 @@ export class AIService {
   /**
    * 处理文本，返回流式响应
    * @param text 要处理的文本
+   * @param processType AI 处理类型
    * @param onChunk 流式响应回调函数
    * @param onComplete 完成回调函数
    * @param onError 错误回调函数
    */
   async processText(
     text: string,
+    processType: AIProcessType,
     onChunk: (chunk: string) => void,
     onComplete: () => void,
     onError: (error: Error) => void
   ): Promise<void> {
     // 先使用用户配置尝试调用 API
-    const userSuccess = await this.processTextWithConfig(text, onChunk, onComplete, onError, false);
+    const userSuccess = await this.processTextWithConfig(text, processType, onChunk, onComplete, onError, false);
     
     // 如果用户配置调用失败，且有默认 API Key，尝试使用默认配置重新调用
     if (!userSuccess && this.DEFAULT_API_KEY) {
       console.log('用户配置调用失败，尝试使用默认配置重新调用');
-      const defaultSuccess = await this.processTextWithConfig(text, onChunk, onComplete, onError, true);
+      const defaultSuccess = await this.processTextWithConfig(text, processType, onChunk, onComplete, onError, true);
       
       // 如果默认配置调用也失败，调用 onError 回调
       if (!defaultSuccess) {

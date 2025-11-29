@@ -35,6 +35,7 @@ describe('AIService Integration Tests', () => {
     // 调用processText方法，发送真实请求
     await aiService.processText(
       testText,
+      'expand',
       (chunk: string) => {
         console.log('Received chunk:', chunk);
         chunks.push(chunk);

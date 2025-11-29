@@ -67,6 +67,7 @@ describe('AIService', () => {
       
       await aiService.processText(
         'test text',
+        'expand',
         (chunk: string) => chunks.push(chunk),
         () => { isComplete = true; },
         () => { errorOccurred = true; }
@@ -95,6 +96,7 @@ describe('AIService', () => {
       // 调用processText方法，验证参数传递
       await aiService.processText(
         'test text',
+        'expand',
         () => {},
         () => {},
         () => {}

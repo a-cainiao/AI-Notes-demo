@@ -1,6 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Note } from '../types/note';
 
+/**
+ * AI 处理类型
+ */
+export type AIProcessType = 'expand' | 'rewrite' | 'summarize';
+
 interface NoteDetailProps {
   /** 当前选中的笔记 */
   note: Note | null;
@@ -9,7 +14,7 @@ interface NoteDetailProps {
   /** 删除笔记的回调函数 */
   onDeleteNote: (id: string) => void;
   /** 触发 AI 处理的回调函数 */
-  onAIProcess: (text: string, isSelection: boolean, start?: number, end?: number) => void;
+  onAIProcess: (text: string, isSelection: boolean, processType: AIProcessType, start?: number, end?: number) => void;
   /** 内容文本域的 ref */
   contentRef?: React.RefObject<HTMLTextAreaElement>;
 }
@@ -27,6 +32,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [isAIDropdownOpen, setIsAIDropdownOpen] = useState(false);
   const internalContentRef = useRef<HTMLTextAreaElement>(null);
   // 使用外部传入的 ref 或内部 ref
   const textareaRef = contentRef || internalContentRef;
@@ -104,7 +110,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
   };
 
   // 处理 AI 处理按钮点击
-  const handleAIProcess = () => {
+  const handleAIProcess = (processType: AIProcessType) => {
     if (!note) return;
 
     const textarea = textareaRef.current;
@@ -139,7 +145,9 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
       selectedText = note.content;
     }
 
-    onAIProcess(selectedText, isSelection, start, end);
+    onAIProcess(selectedText, isSelection, processType, start, end);
+    // 关闭下拉菜单
+    setIsAIDropdownOpen(false);
   };
 
   // 如果没有选中笔记，显示提示信息
@@ -169,12 +177,37 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
           >
             保存
           </button>
-          <button 
-            className="ai-btn"
-            onClick={handleAIProcess}
-          >
-            AI 处理
-          </button>
+          <div className="dropdown">
+            <button 
+              className="ai-btn dropdown-toggle"
+              onClick={() => setIsAIDropdownOpen(!isAIDropdownOpen)}
+            >
+              AI 处理
+              <span className="dropdown-arrow">▼</span>
+            </button>
+            {isAIDropdownOpen && (
+              <div className="dropdown-menu">
+                <button 
+                  className="dropdown-item"
+                  onClick={() => handleAIProcess('expand')}
+                >
+                  扩展
+                </button>
+                <button 
+                  className="dropdown-item"
+                  onClick={() => handleAIProcess('rewrite')}
+                >
+                  重写
+                </button>
+                <button 
+                  className="dropdown-item"
+                  onClick={() => handleAIProcess('summarize')}
+                >
+                  总结
+                </button>
+              </div>
+            )}
+          </div>
           <button 
             className="delete-btn"
             onClick={handleDeleteNote}
