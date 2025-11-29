@@ -1,4 +1,4 @@
-import { AIService, ModelProvider } from '../aiService';
+import { AIService } from '../aiService';
 
 // 模拟logService模块，防止单例状态泄漏
 jest.mock('../logService', () => {
@@ -32,37 +32,7 @@ describe('AIService', () => {
     aiService = new AIService();
   });
   
-  describe('API Key Management', () => {
-    it('should set and get API Key', () => {
-      const testKey = 'test-api-key';
-      
-      aiService.setApiKey(testKey);
-      const retrievedKey = aiService.getApiKey();
-      
-      expect(retrievedKey).toBe(testKey);
-    });
-    
-    it('should delete API Key', () => {
-      const testKey = 'test-api-key';
-      aiService.setApiKey(testKey);
-      
-      aiService.deleteApiKey();
-      const retrievedKey = aiService.getApiKey();
-      
-      expect(retrievedKey).toBeNull();
-    });
-  });
-  
   describe('Provider Management', () => {
-    it('should set and get provider', () => {
-      const testProvider: ModelProvider = 'openai';
-      
-      aiService.setProvider(testProvider);
-      const retrievedProvider = aiService.getProvider();
-      
-      expect(retrievedProvider).toBe(testProvider);
-    });
-    
     it('should return default provider when none is set', () => {
       // 创建新实例，没有设置provider
       const newAiService = new AIService();
@@ -88,9 +58,6 @@ describe('AIService', () => {
   
   describe('processText', () => {
     it('should call onError when no API Key is set', async () => {
-      // 清除API Key
-      aiService.deleteApiKey();
-      
       // 确保没有默认API Key
       (aiService as any).DEFAULT_API_KEY = null;
       
@@ -112,28 +79,10 @@ describe('AIService', () => {
   });
   
   describe('Configuration Validation', () => {
-    it('should validate API Key and provider configuration', () => {
-      // 设置API密钥和提供商
-      aiService.setApiKey('test-api-key');
-      aiService.setProvider('aliyun');
-      
-      // 验证配置是否正确保存
-      expect(aiService.getApiKey()).toBe('test-api-key');
-      expect(aiService.getProvider()).toBe('aliyun');
-      
+    it('should validate provider configuration', () => {
       // 验证默认值
       const newAiService = new AIService();
       expect(newAiService.getProvider()).toBe('aliyun');
-    });
-    
-    it('should handle API Key deletion correctly', () => {
-      // 设置API密钥
-      aiService.setApiKey('test-api-key');
-      expect(aiService.getApiKey()).toBe('test-api-key');
-      
-      // 删除API密钥
-      aiService.deleteApiKey();
-      expect(aiService.getApiKey()).toBeNull();
     });
   });
   
@@ -142,10 +91,6 @@ describe('AIService', () => {
       // 模拟processTextWithConfig方法，避免发送真实请求
       const mockProcessTextWithConfig = jest.spyOn(aiService as any, 'processTextWithConfig');
       mockProcessTextWithConfig.mockResolvedValue(false);
-      
-      // 设置API密钥
-      aiService.setApiKey('test-api-key');
-      aiService.setProvider('aliyun');
       
       // 调用processText方法，验证参数传递
       await aiService.processText(

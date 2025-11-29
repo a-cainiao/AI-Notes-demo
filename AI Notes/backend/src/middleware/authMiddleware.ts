@@ -16,8 +16,14 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    // 提取token
-    const token = authHeader.split(' ')[1];
+    // 提取token，确保格式正确
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2 || parts[0] !== 'Bearer') {
+      res.status(401).json({ message: '无效的认证令牌格式' });
+      return;
+    }
+
+    const token = parts[1];
     if (!token) {
       res.status(401).json({ message: '无效的认证令牌' });
       return;

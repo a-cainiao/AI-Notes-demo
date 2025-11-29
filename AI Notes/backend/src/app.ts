@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import { testDatabaseConnection } from './config/database';
 import { authRouter } from './routes/authRoutes';
 import { noteRouter } from './routes/noteRoutes';
+import logRoutes from './routes/logRoutes';
+import apiKeyRoutes from './routes/apiKeyRoutes';
 
 // 加载环境变量
 dotenv.config();
@@ -19,6 +21,8 @@ app.use(express.urlencoded({ extended: true }));
 // 配置路由
 app.use('/api/auth', authRouter);
 app.use('/api/notes', noteRouter);
+app.use('/api', logRoutes);
+app.use('/api', apiKeyRoutes);
 
 // 健康检查路由
 app.get('/api/health', (req, res) => {
@@ -40,6 +44,8 @@ const startServer = async () => {
       console.log(`📦 API 基础路径: http://localhost:${PORT}/api`);
       console.log(`🔐 认证路由: http://localhost:${PORT}/api/auth`);
       console.log(`📝 笔记路由: http://localhost:${PORT}/api/notes`);
+      console.log(`📋 日志路由: http://localhost:${PORT}/api/logs`);
+      console.log(`🔑 API密钥路由: http://localhost:${PORT}/api/api-keys`);
     });
   } catch (error) {
     console.error('❌ 服务器启动失败:', error);

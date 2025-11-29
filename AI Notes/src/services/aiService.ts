@@ -4,6 +4,7 @@
  */
 
 import { logService } from './logService';
+import { authService } from './authService';
 
 /**
  * 模型提供商类型
@@ -19,58 +20,48 @@ export interface AIConfig {
 }
 
 export class AIService {
-  private apiKey: string | null = null;
-  private provider: ModelProvider = 'aliyun';
   // 默认API Key，从环境变量读取
   private readonly DEFAULT_API_KEY = import.meta.env.VITE_AI_API_KEY || null;
   // 默认模型提供商，从环境变量读取
   private readonly DEFAULT_PROVIDER = (import.meta.env.VITE_AI_PROVIDER as ModelProvider) || 'aliyun';
 
   /**
-   * 设置 API Key
-   */
-  setApiKey(key: string): void {
-    this.apiKey = key;
-    localStorage.setItem('ai-api-key', key);
-  }
-
-  /**
    * 获取保存的 API Key
-   * 优先级：内存缓存 > localStorage > null
+   * 从后端获取API Key
    */
-  getApiKey(): string | null {
-    if (!this.apiKey) {
-      this.apiKey = localStorage.getItem('ai-api-key');
+  async getApiKey(): Promise<string | null> {
+    try {
+      const token = authService.getToken();
+      if (!token) {
+        return null;
+      }
+      
+      const response = await fetch('/api/api-keys', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        return null;
+      }
+      
+      const apiKeys = await response.json();
+      // 目前默认返回第一个API Key，后续可以根据提供商和模型选择
+      return apiKeys.length > 0 ? apiKeys[0].apiKey : null;
+    } catch (error) {
+      console.error('Failed to fetch API keys:', error);
+      return null;
     }
-    return this.apiKey;
   }
 
   /**
-   * 删除保存的 API Key
-   */
-  deleteApiKey(): void {
-    this.apiKey = null;
-    localStorage.removeItem('ai-api-key');
-  }
-
-  /**
-   * 设置模型提供商
-   */
-  setProvider(provider: ModelProvider): void {
-    this.provider = provider;
-    localStorage.setItem('ai-model-provider', provider);
-  }
-
-  /**
-   * 获取保存的模型提供商
-   * 优先级：内存缓存 > localStorage > 默认值 'aliyun'
+   * 获取模型提供商
+   * 目前默认返回阿里云，后续可以根据配置选择
    */
   getProvider(): ModelProvider {
-    if (!this.provider) {
-      const savedProvider = localStorage.getItem('ai-model-provider') as ModelProvider;
-      this.provider = savedProvider || 'aliyun';
-    }
-    return this.provider;
+    return this.DEFAULT_PROVIDER;
   }
 
   /**
@@ -89,7 +80,7 @@ export class AIService {
     useDefaultConfig: boolean = false
   ): Promise<boolean> {
     // 根据是否使用默认配置选择 API Key 和提供商
-    const apiKey = useDefaultConfig ? this.DEFAULT_API_KEY : this.getApiKey();
+    const apiKey = useDefaultConfig ? this.DEFAULT_API_KEY : await this.getApiKey();
     const provider = useDefaultConfig ? this.DEFAULT_PROVIDER : this.getProvider();
     
     if (!apiKey) {
@@ -184,26 +175,8 @@ export class AIService {
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
             if (data === '[DONE]') {
-              // 发送剩余buffer
-              if (chunkBuffer) {
-                onChunk(chunkBuffer);
-              }
-              onComplete();
-              // 记录成功日志
-              const duration = Date.now() - startTime;
-              logService.log({
-                level: 'success',
-                request: {
-                  text,
-                  model,
-                  provider
-                },
-                response: {
-                  content: fullResponse,
-                  duration
-                }
-              });
-              return true;
+              // 流式响应结束，不解析JSON
+              continue;
             }
             try {
               const json = JSON.parse(data);
@@ -240,18 +213,22 @@ export class AIService {
       onComplete();
       // 记录成功日志
       const duration = Date.now() - startTime;
-      logService.log({
-        level: 'success',
-        request: {
-          text,
-          model,
-          provider
-        },
-        response: {
-          content: fullResponse,
-          duration
-        }
-      });
+      try {
+        await logService.log({
+          level: 'success',
+          request: {
+            text,
+            model,
+            provider
+          },
+          response: {
+            content: fullResponse,
+            duration
+          }
+        });
+      } catch (logError) {
+        console.error('Failed to log AI success:', logError);
+      }
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'AI 处理失败';
@@ -259,19 +236,23 @@ export class AIService {
       
       // 记录错误日志
       const duration = Date.now() - startTime;
-      logService.log({
-        level: 'error',
-        request: {
-          text,
-          model,
-          provider
-        },
-        response: {
-          content: fullResponse,
-          duration
-        },
-        error: errorMessage
-      });
+      try {
+        await logService.log({
+          level: 'error',
+          request: {
+            text,
+            model,
+            provider
+          },
+          response: {
+            content: fullResponse,
+            duration
+          },
+          error: errorMessage
+        });
+      } catch (logError) {
+        console.error('Failed to log AI error:', logError);
+      }
       
       return false;
     }

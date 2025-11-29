@@ -25,9 +25,8 @@ describe('AIService Integration Tests', () => {
     
     const testText = 'Hello, please respond with a short greeting.';
     
-    // 设置API密钥和提供商
-    aiService.setApiKey(realApiKey);
-    aiService.setProvider('aliyun');
+    // API密钥将通过processTextWithConfig方法从后端获取
+    // 提供商使用默认值aliyun
     
     const chunks: string[] = [];
     let isComplete = false;

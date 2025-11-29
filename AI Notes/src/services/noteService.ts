@@ -6,7 +6,7 @@ import { authService } from './authService';
  * 负责处理笔记数据的持久化和 CRUD 操作，通过 API 与后端交互
  */
 class NoteService {
-  private readonly API_URL = 'http://localhost:3001/api/notes';
+  private readonly API_URL = '/api/notes';
 
   /**
    * 获取所有笔记
@@ -28,7 +28,13 @@ class NoteService {
         throw new Error('获取笔记失败');
       }
 
-      const notes = await response.json();
+      // 检查响应体是否为空
+      const text = await response.text();
+      if (!text) {
+        return [];
+      }
+
+      const notes = JSON.parse(text);
       // 将字符串日期转换为 Date 对象
       return notes.map((note: any) => ({
         ...note,
@@ -61,7 +67,13 @@ class NoteService {
         throw new Error('获取笔记失败');
       }
 
-      const note = await response.json();
+      // 检查响应体是否为空
+      const text = await response.text();
+      if (!text) {
+        return undefined;
+      }
+
+      const note = JSON.parse(text);
       // 将字符串日期转换为 Date 对象
       return {
         ...note,
@@ -97,7 +109,13 @@ class NoteService {
         throw new Error('创建笔记失败');
       }
 
-      const note = await response.json();
+      // 检查响应体是否为空
+      const text = await response.text();
+      if (!text) {
+        throw new Error('创建笔记失败，响应为空');
+      }
+
+      const note = JSON.parse(text);
       // 将字符串日期转换为 Date 对象
       return {
         ...note,

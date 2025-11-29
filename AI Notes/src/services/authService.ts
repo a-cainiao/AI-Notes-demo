@@ -5,7 +5,7 @@ import { LoginRequest, RegisterRequest, LoginResponse, User } from '../types/use
  * 负责处理用户登录、注册和获取用户信息请求
  */
 export class AuthService {
-  private readonly API_URL = 'http://localhost:3001/api/auth';
+  private readonly API_URL = '/api/auth';
   private readonly TOKEN_KEY = 'ai-notes-token';
   private readonly USER_KEY = 'ai-notes-user';
 
@@ -78,7 +78,14 @@ export class AuthService {
       throw new Error('获取用户信息失败');
     }
 
-    return response.json();
+    // 检查响应体是否为空
+    const text = await response.text();
+    if (!text) {
+      this.clearAuthData();
+      throw new Error('获取用户信息失败，响应为空');
+    }
+
+    return JSON.parse(text);
   }
 
   /**

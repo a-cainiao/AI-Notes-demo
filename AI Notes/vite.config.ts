@@ -7,6 +7,11 @@ export default defineConfig({
   server: {
     proxy: {
       // 配置代理解决 CORS 问题
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false
+      },
       '/api/compatible-mode': {
         target: 'https://dashscope.aliyuncs.com',
         changeOrigin: true,

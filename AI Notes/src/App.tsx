@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import NotesList from './components/NotesList';
 import NoteDetail from './components/NoteDetail';
 import AIModal from './components/AIModal';
-import ApiKeyModal from './components/ApiKeyModal';
+import ApiKeyManager from './components/ApiKeyManager';
 import Logs from './components/Logs';
 import LoginModal from './components/LoginModal';
 import RegisterModal from './components/RegisterModal';
@@ -24,12 +24,11 @@ const App: React.FC = () => {
   
   // AI 相关状态
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isApiKeyManagerOpen, setIsApiKeyManagerOpen] = useState(false);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
   const [aiResult, setAiResult] = useState<string[]>([]);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [isSelection, setIsSelection] = useState(false);
-  const [originalText, setOriginalText] = useState('');
   const [selectionStart, setSelectionStart] = useState<number | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
   const contentRef = React.useRef<HTMLTextAreaElement>(null);
@@ -39,9 +38,9 @@ const App: React.FC = () => {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   
   // 获取认证上下文
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
   
-  // 初始化：加载笔记和检查 API Key
+  // 初始化：加载笔记
   useEffect(() => {
     const loadNotes = async () => {
       if (isAuthenticated) {
@@ -70,16 +69,7 @@ const App: React.FC = () => {
       }
     };
     
-    // 检查是否已设置 API Key，如果没有则显示设置弹窗
-    const checkApiKey = () => {
-      const hasApiKey = !!aiService.getApiKey();
-      if (!hasApiKey) {
-        setIsApiKeyModalOpen(true);
-      }
-    };
-    
     loadNotes();
-    checkApiKey();
   }, [isAuthenticated]);
   
   // 当选中的笔记 ID 变化时，更新选中的笔记
@@ -213,19 +203,11 @@ const App: React.FC = () => {
       return;
     }
     
-    // 检查是否已设置 API Key
-    const hasApiKey = !!aiService.getApiKey();
-    if (!hasApiKey) {
-      setIsApiKeyModalOpen(true);
-      return;
-    }
-    
     // 打开 AI 悬浮框，开始 AI 处理
     setIsAIModalOpen(true);
     setIsAIProcessing(true);
     setAiResult([]);
     setIsSelection(isSelection);
-    setOriginalText(text);
     setSelectionStart(start);
     setSelectionEnd(end);
     
@@ -299,31 +281,17 @@ const App: React.FC = () => {
   };
   
   /**
-   * 关闭 API Key 悬浮框
+   * 关闭 API Key 管理器
    */
-  const handleCloseApiKeyModal = () => {
-    setIsApiKeyModalOpen(false);
-  };
-  
-  /**
-   * API Key 设置完成
-   */
-  const handleApiKeySet = () => {
-    // API Key 设置完成，无需额外操作
+  const handleCloseApiKeyManager = () => {
+    setIsApiKeyManagerOpen(false);
   };
 
   /**
-   * 打开 API Key 设置弹窗
+   * 打开 API Key 管理器
    */
   const handleOpenSettings = () => {
-    setIsApiKeyModalOpen(true);
-  };
-
-  /**
-   * API Key 删除完成
-   */
-  const handleApiKeyDeleted = () => {
-    // API Key 删除完成，无需额外操作
+    setIsApiKeyManagerOpen(true);
   };
 
   /**
@@ -367,11 +335,9 @@ const App: React.FC = () => {
         onDiscard={handleDiscardAIResult}
         onClose={handleCloseAIModal}
       />
-      <ApiKeyModal
-        isOpen={isApiKeyModalOpen}
-        onClose={handleCloseApiKeyModal}
-        onApiKeySet={handleApiKeySet}
-        onApiKeyDeleted={handleApiKeyDeleted}
+      <ApiKeyManager
+        isOpen={isApiKeyManagerOpen}
+        onClose={handleCloseApiKeyManager}
       />
       <Logs
         isOpen={isLogsModalOpen}

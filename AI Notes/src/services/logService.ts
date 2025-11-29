@@ -27,83 +27,121 @@ export interface AILog {
   error?: string;
 }
 
+import { authService } from './authService';
+
 export class LogService {
-  private logs: AILog[] = [];
-  private readonly STORAGE_KEY = 'ai-notes-logs';
-
-  constructor() {
-    this.loadLogs();
-  }
+  private baseUrl = '/api';
 
   /**
-   * 从本地存储加载日志
+   * 获取所有日志
    */
-  private loadLogs(): void {
-    try {
-      const storedLogs = localStorage.getItem(this.STORAGE_KEY);
-      if (storedLogs) {
-        this.logs = JSON.parse(storedLogs);
+  async getLogs(): Promise<AILog[]> {
+    const token = authService.getToken();
+    if (!token) {
+      return [];
+    }
+    
+    const response = await fetch(`${this.baseUrl}/logs`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
-    } catch (error) {
-      console.error('Failed to load logs:', error);
-      this.logs = [];
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch logs');
     }
-  }
-
-  /**
-   * 保存日志到本地存储
-   */
-  private saveLogs(): void {
-    try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.logs));
-    } catch (error) {
-      console.error('Failed to save logs:', error);
+    
+    // 检查响应体是否为空
+    const text = await response.text();
+    if (!text) {
+      return [];
     }
+    
+    const logs = JSON.parse(text);
+    // 转换日期格式并添加timestamp字段以保持兼容性
+    return logs.map((log: any) => ({
+      ...log,
+      timestamp: new Date(log.createdAt).getTime()
+    }));
   }
 
   /**
    * 记录 AI 处理日志
    * @param log 日志信息
    */
-  log(log: Omit<AILog, 'id' | 'timestamp'>): void {
-    const newLog: AILog = {
-      ...log,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      timestamp: Date.now()
-    };
-
-    this.logs.unshift(newLog);
-    
-    // 只保留最近 100 条日志
-    if (this.logs.length > 100) {
-      this.logs = this.logs.slice(0, 100);
+  async log(log: Omit<AILog, 'id' | 'timestamp'>): Promise<AILog> {
+    const token = authService.getToken();
+    if (!token) {
+      // 未登录时，返回模拟日志，不发送到后端
+      return {
+        ...log,
+        id: Date.now().toString(),
+        timestamp: Date.now()
+      };
     }
-
-    this.saveLogs();
-  }
-
-  /**
-   * 获取所有日志
-   */
-  getLogs(): AILog[] {
-    return [...this.logs];
-  }
-
-  /**
-   * 清除所有日志
-   */
-  clearLogs(): void {
-    this.logs = [];
-    this.saveLogs();
+    
+    const response = await fetch(`${this.baseUrl}/logs`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(log)
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to create log');
+    }
+    
+    const createdLog = await response.json();
+    return {
+      ...createdLog,
+      timestamp: new Date(createdLog.createdAt).getTime()
+    };
   }
 
   /**
    * 删除指定日志
    * @param logId 日志 ID
    */
-  deleteLog(logId: string): void {
-    this.logs = this.logs.filter(log => log.id !== logId);
-    this.saveLogs();
+  async deleteLog(logId: string): Promise<void> {
+    const token = authService.getToken();
+    if (!token) {
+      return;
+    }
+    
+    const response = await fetch(`${this.baseUrl}/logs/${logId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to delete log');
+    }
+  }
+
+  /**
+   * 清除所有日志
+   */
+  async clearLogs(): Promise<void> {
+    const token = authService.getToken();
+    if (!token) {
+      return;
+    }
+    
+    const response = await fetch(`${this.baseUrl}/logs`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to clear logs');
+    }
   }
 }
 
