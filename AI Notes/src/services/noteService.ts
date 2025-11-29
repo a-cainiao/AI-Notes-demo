@@ -35,12 +35,8 @@ class NoteService {
       }
 
       const notes = JSON.parse(text);
-      // 将字符串日期转换为 Date 对象
-      return notes.map((note: any) => ({
-        ...note,
-        createdAt: new Date(note.createdAt),
-        updatedAt: new Date(note.updatedAt)
-      }));
+      // 直接返回笔记，不转换日期为 Date 对象
+      return notes;
     } catch (error) {
       console.error('Failed to get notes from API:', error);
       return [];
@@ -74,12 +70,8 @@ class NoteService {
       }
 
       const note = JSON.parse(text);
-      // 将字符串日期转换为 Date 对象
-      return {
-        ...note,
-        createdAt: new Date(note.createdAt),
-        updatedAt: new Date(note.updatedAt)
-      };
+      // 直接返回笔记，不转换日期为 Date 对象
+      return note;
     } catch (error) {
       console.error(`Failed to get note ${id} from API:`, error);
       return undefined;
@@ -116,21 +108,18 @@ class NoteService {
       }
 
       const note = JSON.parse(text);
-      // 将字符串日期转换为 Date 对象
-      return {
-        ...note,
-        createdAt: new Date(note.createdAt),
-        updatedAt: new Date(note.updatedAt)
-      };
+      // 直接返回笔记，不转换日期为 Date 对象
+      return note;
     } catch (error) {
       console.error('Failed to create note:', error);
       // 如果 API 调用失败，返回一个临时笔记对象
+      const now = new Date().toISOString();
       return {
         id: this.generateId(),
         title,
         content,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: now,
+        updatedAt: now
       };
     }
   }
@@ -159,12 +148,8 @@ class NoteService {
       }
 
       const note = await response.json();
-      // 将字符串日期转换为 Date 对象
-      return {
-        ...note,
-        createdAt: new Date(note.createdAt),
-        updatedAt: new Date(note.updatedAt)
-      };
+      // 直接返回笔记，不转换日期为 Date 对象
+      return note;
     } catch (error) {
       console.error(`Failed to update note ${id}:`, error);
       return undefined;

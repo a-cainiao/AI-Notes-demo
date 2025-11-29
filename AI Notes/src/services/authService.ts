@@ -112,13 +112,8 @@ export class AuthService {
   getUser(): User | null {
     const userJson = localStorage.getItem(this.USER_KEY);
     if (userJson) {
-      const user = JSON.parse(userJson);
-      // 将字符串日期转换为Date对象
-      return {
-        ...user,
-        createdAt: new Date(user.createdAt),
-        updatedAt: new Date(user.updatedAt)
-      };
+      // 直接返回JSON解析结果，不转换日期为Date对象
+      return JSON.parse(userJson);
     }
     return null;
   }

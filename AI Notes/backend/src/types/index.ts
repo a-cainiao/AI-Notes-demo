@@ -39,6 +39,56 @@ export interface LoginResponse {
 }
 
 /**
+ * 分类类型定义
+ */
+export interface Category {
+  id: string;
+  userId: number;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * 创建分类请求类型
+ */
+export interface CreateCategoryRequest {
+  name: string;
+}
+
+/**
+ * 更新分类请求类型
+ */
+export interface UpdateCategoryRequest {
+  name: string;
+}
+
+/**
+ * 标签类型定义
+ */
+export interface Tag {
+  id: string;
+  userId: number;
+  name: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * 创建标签请求类型
+ */
+export interface CreateTagRequest {
+  name: string;
+}
+
+/**
+ * 更新标签请求类型
+ */
+export interface UpdateTagRequest {
+  name: string;
+}
+
+/**
  * 笔记类型定义
  */
 export interface Note {
@@ -46,6 +96,9 @@ export interface Note {
   userId: number;
   title: string;
   content: string;
+  categoryId: string | null;
+  category?: Category;
+  tags: Tag[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -56,6 +109,8 @@ export interface Note {
 export interface CreateNoteRequest {
   title: string;
   content: string;
+  categoryId?: string | null;
+  tagIds?: string[];
 }
 
 /**
@@ -64,6 +119,8 @@ export interface CreateNoteRequest {
 export interface UpdateNoteRequest {
   title?: string;
   content?: string;
+  categoryId?: string | null;
+  tagIds?: string[];
 }
 
 /**

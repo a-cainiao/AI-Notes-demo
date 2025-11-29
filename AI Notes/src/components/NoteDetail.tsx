@@ -32,7 +32,6 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [isAIDropdownOpen, setIsAIDropdownOpen] = useState(false);
   const internalContentRef = useRef<HTMLTextAreaElement>(null);
   // 使用外部传入的 ref 或内部 ref
   const textareaRef = contentRef || internalContentRef;
@@ -41,8 +40,14 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
   // 自动保存间隔（毫秒）
   const AUTO_SAVE_INTERVAL = 30000;
 
-  // 当选中的笔记变化时，更新本地状态
+  // 当选中的笔记变化时，更新本地状态并清除防抖定时器
   useEffect(() => {
+    // 清除之前的防抖定时器
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    
     if (note) {
       setTitle(note.title);
       setContent(note.content);
@@ -59,24 +64,24 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
   }, []);
 
   // 防抖处理更新笔记
-  const debouncedUpdateNote = useCallback((id: string, updates: Partial<Note>) => {
+  const debouncedUpdateNote = useCallback((id: string) => {
     // 清除之前的定时器
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
 
-    // 设置新的定时器
+    // 设置新的定时器，直接使用当前state的title和content
     debounceTimerRef.current = setTimeout(() => {
-      onUpdateNote(id, updates);
+      onUpdateNote(id, { title, content });
     }, AUTO_SAVE_INTERVAL);
-  }, [onUpdateNote]);
+  }, [onUpdateNote, title, content]);
 
   // 处理标题变化
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
     setTitle(newTitle);
     if (note) {
-      debouncedUpdateNote(note.id, { title: newTitle });
+      debouncedUpdateNote(note.id);
     }
   };
 
@@ -85,7 +90,7 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
     const newContent = e.target.value;
     setContent(newContent);
     if (note) {
-      debouncedUpdateNote(note.id, { content: newContent });
+      debouncedUpdateNote(note.id);
     }
   };
 
@@ -146,8 +151,6 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
     }
 
     onAIProcess(selectedText, isSelection, processType, start, end);
-    // 关闭下拉菜单
-    setIsAIDropdownOpen(false);
   };
 
   // 如果没有选中笔记，显示提示信息
@@ -177,37 +180,24 @@ const NoteDetail: React.FC<NoteDetailProps> = ({
           >
             保存
           </button>
-          <div className="dropdown">
-            <button 
-              className="ai-btn dropdown-toggle"
-              onClick={() => setIsAIDropdownOpen(!isAIDropdownOpen)}
-            >
-              AI 处理
-              <span className="dropdown-arrow">▼</span>
-            </button>
-            {isAIDropdownOpen && (
-              <div className="dropdown-menu">
-                <button 
-                  className="dropdown-item"
-                  onClick={() => handleAIProcess('expand')}
-                >
-                  扩展
-                </button>
-                <button 
-                  className="dropdown-item"
-                  onClick={() => handleAIProcess('rewrite')}
-                >
-                  重写
-                </button>
-                <button 
-                  className="dropdown-item"
-                  onClick={() => handleAIProcess('summarize')}
-                >
-                  总结
-                </button>
-              </div>
-            )}
-          </div>
+          <button 
+            className="ai-btn"
+            onClick={() => handleAIProcess('rewrite')}
+          >
+            重写
+          </button>
+          <button 
+            className="ai-btn"
+            onClick={() => handleAIProcess('expand')}
+          >
+            扩展
+          </button>
+          <button 
+            className="ai-btn"
+            onClick={() => handleAIProcess('summarize')}
+          >
+            总结
+          </button>
           <button 
             className="delete-btn"
             onClick={handleDeleteNote}

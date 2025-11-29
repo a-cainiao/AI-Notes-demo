@@ -31,10 +31,10 @@ export class AIService {
   private readonly DEFAULT_PROVIDER = (import.meta.env.VITE_AI_PROVIDER as ModelProvider) || 'aliyun';
 
   /**
-   * 获取保存的 API Key
-   * 从后端获取API Key
+   * 获取保存的 API Key 和模型配置
+   * 从后端获取完整的API Key配置
    */
-  async getApiKey(): Promise<string | null> {
+  async getApiKeyConfig(): Promise<{ apiKey: string; provider: ModelProvider; model: string } | null> {
     try {
       const token = authService.getToken();
       if (!token) {
@@ -53,8 +53,12 @@ export class AIService {
       }
       
       const apiKeys = await response.json();
-      // 目前默认返回第一个API Key，后续可以根据提供商和模型选择
-      return apiKeys.length > 0 ? apiKeys[0].apiKey : null;
+      // 目前默认返回第一个API Key配置，后续可以根据提供商和模型选择
+      return apiKeys.length > 0 ? {
+        apiKey: apiKeys[0].apiKey,
+        provider: apiKeys[0].provider as ModelProvider,
+        model: apiKeys[0].model
+      } : null;
     } catch (error) {
       console.error('Failed to fetch API keys:', error);
       return null;
@@ -87,14 +91,28 @@ export class AIService {
     useDefaultConfig: boolean = false
   ): Promise<boolean> {
     // 根据是否使用默认配置选择 API Key 和提供商
-    const apiKey = useDefaultConfig ? this.DEFAULT_API_KEY : await this.getApiKey();
-    const provider = useDefaultConfig ? this.DEFAULT_PROVIDER : this.getProvider();
+    let apiKey: string | null;
+    let provider: ModelProvider;
+    let model: string;
+    
+    if (useDefaultConfig) {
+      apiKey = this.DEFAULT_API_KEY;
+      provider = this.DEFAULT_PROVIDER;
+      model = provider === 'openai' ? 'gpt-3.5-turbo' : 'qwen-turbo';
+    } else {
+      const apiKeyConfig = await this.getApiKeyConfig();
+      if (!apiKeyConfig) {
+        return false;
+      }
+      apiKey = apiKeyConfig.apiKey;
+      provider = apiKeyConfig.provider;
+      model = apiKeyConfig.model;
+    }
     
     if (!apiKey) {
       return false;
     }
 
-    const model = provider === 'openai' ? 'gpt-3.5-turbo' : 'qwen-turbo';
     const startTime = Date.now();
     let fullResponse = '';
     
@@ -129,7 +147,7 @@ export class AIService {
           'Authorization': `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          model: provider === 'openai' ? 'gpt-3.5-turbo' : 'qwen-turbo',
+          model: model,
           messages: [
             {
               role: 'system',

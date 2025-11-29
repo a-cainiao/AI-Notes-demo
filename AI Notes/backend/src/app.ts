@@ -6,6 +6,8 @@ import { authRouter } from './routes/authRoutes';
 import { noteRouter } from './routes/noteRoutes';
 import logRoutes from './routes/logRoutes';
 import apiKeyRoutes from './routes/apiKeyRoutes';
+import { categoryRoutes } from './routes/categoryRoutes';
+import { tagRoutes } from './routes/tagRoutes';
 
 // 加载环境变量
 dotenv.config();
@@ -21,6 +23,8 @@ app.use(express.urlencoded({ extended: true }));
 // 配置路由
 app.use('/api/auth', authRouter);
 app.use('/api/notes', noteRouter);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/tags', tagRoutes);
 app.use('/api', logRoutes);
 app.use('/api', apiKeyRoutes);
 
@@ -44,6 +48,8 @@ const startServer = async () => {
       console.log(`📦 API 基础路径: http://localhost:${PORT}/api`);
       console.log(`🔐 认证路由: http://localhost:${PORT}/api/auth`);
       console.log(`📝 笔记路由: http://localhost:${PORT}/api/notes`);
+      console.log(`📂 分类路由: http://localhost:${PORT}/api/categories`);
+      console.log(`🏷️  标签路由: http://localhost:${PORT}/api/tags`);
       console.log(`📋 日志路由: http://localhost:${PORT}/api/logs`);
       console.log(`🔑 API密钥路由: http://localhost:${PORT}/api/api-keys`);
     });

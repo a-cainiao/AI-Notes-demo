@@ -27,7 +27,7 @@ body {
 
 /* 笔记列表样式 */
 .notes-list {
-  width: 300px;
+  width: 400px;
   background-color: #fff;
   border-right: 1px solid #e0e0e0;
   display: flex;

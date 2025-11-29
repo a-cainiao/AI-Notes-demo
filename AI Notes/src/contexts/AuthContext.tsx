@@ -1,6 +1,7 @@
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, ReactNode, useContext } from 'react';
 import { User } from '../types/user';
-import { authService } from '../services/authService';
+import { useAppSelector, useAppDispatch } from '../store/hooks';
+import { login, register, logout, refreshUser } from '../store/authSlice';
 
 /**
  * 认证上下文类型定义
@@ -26,44 +27,19 @@ interface AuthProviderProps {
 
 /**
  * 认证上下文提供者组件
- * 管理用户状态，提供登录、注册、登出等方法
+ * 现在使用 Redux 状态，提供登录、注册、登出等方法
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // 初始化：从localStorage加载用户信息
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const savedUser = authService.getUser();
-        if (savedUser) {
-          setUser(savedUser);
-        }
-      } catch (error) {
-        console.error('加载用户信息失败:', error);
-        authService.clearAuthData();
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadUser();
-  }, []);
+  const dispatch = useAppDispatch();
+  const { user, isLoading, isAuthenticated } = useAppSelector((state) => state.auth);
 
   /**
    * 用户登录
    * @param phone 手机号
    * @param password 密码
    */
-  const login = async (phone: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const data = await authService.login({ phone, password });
-      setUser(data.user);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleLogin = async (phone: string, password: string) => {
+    await dispatch(login({ phone, password })).unwrap();
   };
 
   /**
@@ -73,50 +49,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * @param phone 手机号
    * @param email 邮箱
    */
-  const register = async (username: string, password: string, phone: string, email: string) => {
-    setIsLoading(true);
-    try {
-      const data = await authService.register({ username, password, phone, email });
-      setUser(data.user);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleRegister = async (username: string, password: string, phone: string, email: string) => {
+    await dispatch(register({ username, password, phone, email })).unwrap();
   };
 
   /**
    * 用户登出
    */
-  const logout = () => {
-    authService.logout();
-    setUser(null);
+  const handleLogout = () => {
+    dispatch(logout());
   };
 
   /**
    * 刷新用户信息
    */
-  const refreshUser = async () => {
-    setIsLoading(true);
-    try {
-      const updatedUser = await authService.getCurrentUser();
-      setUser(updatedUser);
-    } catch (error) {
-      console.error('刷新用户信息失败:', error);
-      authService.clearAuthData();
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleRefreshUser = async () => {
+    await dispatch(refreshUser()).unwrap();
   };
 
   // 上下文值
   const contextValue: AuthContextType = {
     user,
     isLoading,
-    isAuthenticated: !!user,
-    login,
-    register,
-    logout,
-    refreshUser
+    isAuthenticated,
+    login: handleLogin,
+    register: handleRegister,
+    logout: handleLogout,
+    refreshUser: handleRefreshUser
   };
 
   return (
@@ -131,7 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
  * @returns 认证上下文
  */
 export const useAuth = (): AuthContextType => {
-  const context = React.useContext(AuthContext);
+  const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
