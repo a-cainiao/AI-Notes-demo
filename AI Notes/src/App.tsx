@@ -4,9 +4,12 @@ import NoteDetail from './components/NoteDetail';
 import AIModal from './components/AIModal';
 import ApiKeyModal from './components/ApiKeyModal';
 import Logs from './components/Logs';
+import LoginModal from './components/LoginModal';
+import RegisterModal from './components/RegisterModal';
 import { Note } from './types/note';
 import { noteService } from './services/noteService';
 import { aiService } from './services/aiService';
+import { useAuth } from './contexts/AuthContext';
 
 /**
  * 主应用组件
@@ -17,6 +20,7 @@ const App: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   
   // AI 相关状态
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
@@ -30,45 +34,115 @@ const App: React.FC = () => {
   const [selectionEnd, setSelectionEnd] = useState<number | null>(null);
   const contentRef = React.useRef<HTMLTextAreaElement>(null);
   
+  // 登录注册相关状态
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  
+  // 获取认证上下文
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  
   // 初始化：加载笔记和检查 API Key
   useEffect(() => {
-    // 加载所有笔记
-    const loadedNotes = noteService.getAllNotes();
-    setNotes(loadedNotes);
-    
-    // 如果有笔记，默认选中第一个
-    if (loadedNotes.length > 0) {
-      const firstNote = loadedNotes[0];
-      setSelectedNoteId(firstNote.id);
-      setSelectedNote(firstNote);
-    }
+    const loadNotes = async () => {
+      if (isAuthenticated) {
+        setIsLoadingNotes(true);
+        try {
+          // 加载所有笔记
+          const loadedNotes = await noteService.getAllNotes();
+          setNotes(loadedNotes);
+          
+          // 如果有笔记，默认选中第一个
+          if (loadedNotes.length > 0) {
+            const firstNote = loadedNotes[0];
+            setSelectedNoteId(firstNote.id);
+            setSelectedNote(firstNote);
+          }
+        } catch (error) {
+          console.error('Failed to load notes:', error);
+        } finally {
+          setIsLoadingNotes(false);
+        }
+      } else {
+        // 未登录时清空笔记
+        setNotes([]);
+        setSelectedNoteId(null);
+        setSelectedNote(null);
+      }
+    };
     
     // 检查是否已设置 API Key，如果没有则显示设置弹窗
-    const hasApiKey = !!aiService.getApiKey();
-    if (!hasApiKey) {
-      setIsApiKeyModalOpen(true);
-    }
-  }, []);
+    const checkApiKey = () => {
+      const hasApiKey = !!aiService.getApiKey();
+      if (!hasApiKey) {
+        setIsApiKeyModalOpen(true);
+      }
+    };
+    
+    loadNotes();
+    checkApiKey();
+  }, [isAuthenticated]);
   
   // 当选中的笔记 ID 变化时，更新选中的笔记
   useEffect(() => {
-    if (selectedNoteId) {
-      const note = noteService.getNoteById(selectedNoteId);
-      setSelectedNote(note ?? null);
-    } else {
-      setSelectedNote(null);
-    }
-  }, [selectedNoteId]);
+    const loadSelectedNote = async () => {
+      if (selectedNoteId && isAuthenticated) {
+        try {
+          const note = await noteService.getNoteById(selectedNoteId);
+          setSelectedNote(note ?? null);
+        } catch (error) {
+          console.error('Failed to load selected note:', error);
+          setSelectedNote(null);
+        }
+      } else {
+        setSelectedNote(null);
+      }
+    };
+    
+    loadSelectedNote();
+  }, [selectedNoteId, isAuthenticated]);
+  
+  /**
+   * 打开登录模态框
+   */
+  const handleOpenLoginModal = () => {
+    setIsLoginModalOpen(true);
+    setIsRegisterModalOpen(false);
+  };
+  
+  /**
+   * 打开注册模态框
+   */
+  const handleOpenRegisterModal = () => {
+    setIsRegisterModalOpen(true);
+    setIsLoginModalOpen(false);
+  };
+  
+  /**
+   * 关闭登录注册模态框
+   */
+  const handleCloseAuthModals = () => {
+    setIsLoginModalOpen(false);
+    setIsRegisterModalOpen(false);
+  };
   
   /**
    * 创建新笔记
    */
-  const handleCreateNote = () => {
-    const newNote = noteService.createNote();
-    const updatedNotes = noteService.getAllNotes();
-    setNotes(updatedNotes);
-    setSelectedNoteId(newNote.id);
-    setSelectedNote(newNote);
+  const handleCreateNote = async () => {
+    if (!isAuthenticated) {
+      handleOpenLoginModal();
+      return;
+    }
+    
+    try {
+      const newNote = await noteService.createNote();
+      const updatedNotes = await noteService.getAllNotes();
+      setNotes(updatedNotes);
+      setSelectedNoteId(newNote.id);
+      setSelectedNote(newNote);
+    } catch (error) {
+      console.error('Failed to create note:', error);
+    }
   };
   
   /**
@@ -81,37 +155,51 @@ const App: React.FC = () => {
   /**
    * 更新笔记
    */
-  const handleUpdateNote = (id: string, updates: Partial<Note>) => {
-    noteService.updateNote(id, updates);
-    const updatedNotes = noteService.getAllNotes();
-    setNotes(updatedNotes);
+  const handleUpdateNote = async (id: string, updates: Partial<Note>) => {
+    if (!isAuthenticated) return;
     
-    // 更新当前选中的笔记
-    if (selectedNoteId === id) {
-      const updatedNote = noteService.getNoteById(id);
-      if (updatedNote) {
-        setSelectedNote(updatedNote);
+    try {
+      await noteService.updateNote(id, updates);
+      const updatedNotes = await noteService.getAllNotes();
+      setNotes(updatedNotes);
+      
+      // 更新当前选中的笔记
+      if (selectedNoteId === id) {
+        const updatedNote = await noteService.getNoteById(id);
+        if (updatedNote) {
+          setSelectedNote(updatedNote);
+        }
       }
+    } catch (error) {
+      console.error('Failed to update note:', error);
     }
   };
   
   /**
    * 删除笔记
    */
-  const handleDeleteNote = (id: string) => {
-    noteService.deleteNote(id);
-    const updatedNotes = noteService.getAllNotes();
-    setNotes(updatedNotes);
+  const handleDeleteNote = async (id: string) => {
+    if (!isAuthenticated) return;
     
-    // 如果删除的是当前选中的笔记，重新选择第一个笔记或取消选择
-    if (selectedNoteId === id) {
-      if (updatedNotes.length > 0) {
-        setSelectedNoteId(updatedNotes[0].id);
-        setSelectedNote(updatedNotes[0]);
-      } else {
-        setSelectedNoteId(null);
-        setSelectedNote(null);
+    try {
+      const success = await noteService.deleteNote(id);
+      if (success) {
+        const updatedNotes = await noteService.getAllNotes();
+        setNotes(updatedNotes);
+        
+        // 如果删除的是当前选中的笔记，重新选择第一个笔记或取消选择
+        if (selectedNoteId === id) {
+          if (updatedNotes.length > 0) {
+            setSelectedNoteId(updatedNotes[0].id);
+            setSelectedNote(updatedNotes[0]);
+          } else {
+            setSelectedNoteId(null);
+            setSelectedNote(null);
+          }
+        }
       }
+    } catch (error) {
+      console.error('Failed to delete note:', error);
     }
   };
   
@@ -119,6 +207,12 @@ const App: React.FC = () => {
    * 触发 AI 处理
    */
   const handleAIProcess = (text: string, isSelection: boolean, start: number = 0, end: number = 0) => {
+    // 检查是否已登录
+    if (!isAuthenticated) {
+      handleOpenLoginModal();
+      return;
+    }
+    
     // 检查是否已设置 API Key
     const hasApiKey = !!aiService.getApiKey();
     if (!hasApiKey) {
@@ -255,6 +349,8 @@ const App: React.FC = () => {
         onCreateNote={handleCreateNote}
         onOpenSettings={handleOpenSettings}
         onOpenLogs={handleOpenLogs}
+        onOpenLoginModal={handleOpenLoginModal}
+        isLoading={isLoadingNotes}
       />
       <NoteDetail
         note={selectedNote}
@@ -280,6 +376,16 @@ const App: React.FC = () => {
       <Logs
         isOpen={isLogsModalOpen}
         onClose={handleCloseLogs}
+      />
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={handleCloseAuthModals}
+        onSwitchToRegister={handleOpenRegisterModal}
+      />
+      <RegisterModal
+        isOpen={isRegisterModalOpen}
+        onClose={handleCloseAuthModals}
+        onSwitchToLogin={handleOpenLoginModal}
       />
     </div>
   );

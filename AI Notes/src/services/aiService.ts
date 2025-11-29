@@ -22,9 +22,9 @@ export class AIService {
   private apiKey: string | null = null;
   private provider: ModelProvider = 'aliyun';
   // 默认API Key，从环境变量读取
-  private readonly DEFAULT_API_KEY = process.env.VITE_AI_API_KEY || null;
+  private readonly DEFAULT_API_KEY = import.meta.env.VITE_AI_API_KEY || null;
   // 默认模型提供商，从环境变量读取
-  private readonly DEFAULT_PROVIDER = (process.env.VITE_AI_PROVIDER as ModelProvider) || 'aliyun';
+  private readonly DEFAULT_PROVIDER = (import.meta.env.VITE_AI_PROVIDER as ModelProvider) || 'aliyun';
 
   /**
    * 设置 API Key

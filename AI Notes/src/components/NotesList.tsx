@@ -1,5 +1,6 @@
 import React from 'react';
 import { Note } from '../types/note';
+import UserAvatar from './UserAvatar';
 
 interface NotesListProps {
   /** 笔记列表数据 */
@@ -14,6 +15,10 @@ interface NotesListProps {
   onOpenSettings?: () => void;
   /** 打开日志的回调函数 */
   onOpenLogs?: () => void;
+  /** 打开登录模态框的回调函数 */
+  onOpenLoginModal: () => void;
+  /** 是否正在加载笔记 */
+  isLoading?: boolean;
 }
 
 /**
@@ -26,7 +31,9 @@ const NotesList: React.FC<NotesListProps> = ({
   onSelectNote,
   onCreateNote,
   onOpenSettings,
-  onOpenLogs
+  onOpenLogs,
+  onOpenLoginModal,
+  isLoading = false
 }) => {
   /**
    * 格式化日期显示
@@ -52,38 +59,50 @@ const NotesList: React.FC<NotesListProps> = ({
   return (
     <div className="notes-list">
       <div className="notes-list-header">
-        <h2 className="notes-list-title">AI 笔记</h2>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {onOpenLogs && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <h2 className="notes-list-title">AI 笔记</h2>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {onOpenLogs && (
+              <button 
+                className="new-note-btn" 
+                onClick={onOpenLogs}
+                style={{ backgroundColor: '#28a745' }}
+                title="查看 AI 处理日志"
+              >
+                日志
+              </button>
+            )}
+            {onOpenSettings && (
+              <button 
+                className="new-note-btn" 
+                onClick={onOpenSettings}
+                style={{ backgroundColor: '#6c757d' }}
+                title="设置 API Key"
+              >
+                设置
+              </button>
+            )}
             <button 
               className="new-note-btn" 
-              onClick={onOpenLogs}
-              style={{ backgroundColor: '#28a745' }}
-              title="查看 AI 处理日志"
+              onClick={onCreateNote}
             >
-              日志
+              新建笔记
             </button>
-          )}
-          {onOpenSettings && (
-            <button 
-              className="new-note-btn" 
-              onClick={onOpenSettings}
-              style={{ backgroundColor: '#6c757d' }}
-              title="设置 API Key"
-            >
-              设置
-            </button>
-          )}
-          <button 
-            className="new-note-btn" 
-            onClick={onCreateNote}
-          >
-            新建笔记
-          </button>
+            <UserAvatar onOpenLoginModal={onOpenLoginModal} />
+          </div>
         </div>
       </div>
       <div className="notes-list-content">
-        {notes.length === 0 ? (
+        {isLoading ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '20px', 
+            color: '#666',
+            fontSize: '14px'
+          }}>
+            加载中...
+          </div>
+        ) : notes.length === 0 ? (
           <div style={{ 
             textAlign: 'center', 
             padding: '20px', 
