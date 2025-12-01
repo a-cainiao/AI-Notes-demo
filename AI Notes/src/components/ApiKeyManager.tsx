@@ -207,8 +207,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ isOpen, onClose }) => {
                   >
                     <option value="openai">OpenAI</option>
                     <option value="aliyun">阿里云</option>
-                    <option value="baidu">百度</option>
-                    <option value="anthropic">Anthropic</option>
+                   
                   </select>
                 </div>
 
@@ -223,7 +222,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ isOpen, onClose }) => {
                     name="model"
                     value={formData.model}
                     onChange={handleInputChange}
-                    placeholder="例如: gpt-3.5-turbo"
+                    placeholder="例如: qwen-turbo"
                     disabled={!!editingApiKey || loading}
                     style={{
                       padding: '8px 12px',
